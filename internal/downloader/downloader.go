@@ -63,7 +63,12 @@ func DownloadAndInstall(version, distsDir, sdksDir string) error {
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
+		switch resp.StatusCode {
+		case http.StatusOK:
+			// OK
+		case http.StatusNotFound:
+			return fmt.Errorf("version %s not found", version)
+		default:
 			return fmt.Errorf("failed to download: %s", resp.Status)
 		}
 

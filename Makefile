@@ -11,6 +11,3 @@ build:
 
 clean:
 	rm -rf $(BUILD_DIR)
-
-run: build
-	./$(BUILD_DIR)/$(BINARY_NAME)
