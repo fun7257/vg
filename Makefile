@@ -1,7 +1,7 @@
 BINARY_NAME=vg
 BUILD_DIR=.tmp/build
 
-.PHONY: all build clean run
+.PHONY: all build clean run install-hooks
 
 all: build
 
@@ -11,3 +11,6 @@ build:
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+install-hooks:
+	@./scripts/install-hooks.sh

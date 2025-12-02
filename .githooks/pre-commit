@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Pre-commit hook to run golangci-lint
+# This file should be copied to .git/hooks/pre-commit
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${YELLOW}Running golangci-lint...${NC}"
+
+# Check if golangci-lint is installed
+if ! command -v golangci-lint &> /dev/null; then
+    echo -e "${RED}Error: golangci-lint is not installed${NC}"
+    echo -e "${YELLOW}Install it with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest${NC}"
+    echo -e "${YELLOW}Or skip this hook with: git commit --no-verify${NC}"
+    exit 1
+fi
+
+# Run golangci-lint
+if golangci-lint run; then
+    echo -e "${GREEN}✓ golangci-lint passed${NC}"
+    exit 0
+else
+    echo -e "${RED}✗ golangci-lint failed${NC}"
+    echo -e "${YELLOW}Please fix the issues above before committing${NC}"
+    echo -e "${YELLOW}Or skip this hook with: git commit --no-verify${NC}"
+    exit 1
+fi
+
