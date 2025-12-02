@@ -71,12 +71,16 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           files: |
             dist/vg-linux-amd64
             dist/vg-linux-arm64
             dist/vg-darwin-amd64
             dist/vg-darwin-arm64
           generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
