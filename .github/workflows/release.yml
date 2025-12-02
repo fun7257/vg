@@ -62,6 +62,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
+      id-token: write
     
     steps:
       - name: Checkout code
@@ -82,25 +83,38 @@ jobs:
 
       - name: Prepare release files
         run: |
+          echo "Current directory structure:"
+          ls -la dist/ || echo "dist/ not found"
+          echo ""
+          echo "Searching for artifacts..."
+          find dist -type f -name "vg-*" || echo "No vg-* files found"
+          echo ""
+          
           mkdir -p release
-          # download-artifact creates subdirectories for each artifact
-          # The structure is: dist/artifact-name/file-name
-          # Copy all vg-* files to a flat release directory
-          for dir in dist/vg-*; do
-            if [ -d "$dir" ]; then
-              cp "$dir"/* release/ 2>/dev/null || true
-            fi
-          done
-          # Also check if files are directly in dist (fallback)
-          find dist -maxdepth 1 -type f -name "vg-*" -exec cp {} release/ \; 2>/dev/null || true
-          chmod +x release/*
-          echo "Release files:"
-          ls -lh release/
+          
+          # download-artifact@v4 creates subdirectories: dist/artifact-name/file-name
+          # Find and copy all vg-* files to release directory
+          find dist -type f -name "vg-*" -exec cp {} release/ \;
+          
+          # Verify files were copied
+          echo ""
+          echo "Files in release directory:"
+          ls -lh release/ || echo "No files in release/"
+          
+          # Make sure all files are executable
+          chmod +x release/* 2>/dev/null || true
+          
+          # Verify we have all 4 files
+          if [ ! -f release/vg-linux-amd64 ] || [ ! -f release/vg-linux-arm64 ] || \
+             [ ! -f release/vg-darwin-amd64 ] || [ ! -f release/vg-darwin-arm64 ]; then
+            echo "Error: Missing required files!"
+            exit 1
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}  # Use the tag name that triggered the workflow
+          tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
             ## Release ${{ github.ref_name }}
@@ -113,7 +127,11 @@ jobs:
             - `vg-linux-arm64` - Linux ARM64
             - `vg-darwin-amd64` - macOS Intel
             - `vg-darwin-arm64` - macOS Apple Silicon
-          files: release/*
+          files: |
+            release/vg-linux-amd64
+            release/vg-linux-arm64
+            release/vg-darwin-amd64
+            release/vg-darwin-arm64
           generate_release_notes: true
           draft: false
           prerelease: false
