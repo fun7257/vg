@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vg/internal/config"
+	"github.com/fun7257/vg/internal/config"
 
 	"github.com/spf13/cobra"
 )

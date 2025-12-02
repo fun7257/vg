@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"vg/internal/config"
+	"github.com/fun7257/vg/internal/config"
 
 	"github.com/spf13/cobra"
 )

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vg/internal/config"
-	"vg/internal/downloader"
+	"github.com/fun7257/vg/internal/config"
+	"github.com/fun7257/vg/internal/downloader"
 
 	"github.com/spf13/cobra"
 )

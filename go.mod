@@ -1,4 +1,4 @@
-module vg
+module github.com/fun7257/vg
 
 go 1.24.0
 
