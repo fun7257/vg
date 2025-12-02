@@ -40,15 +40,11 @@ var installCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Installing Go %s...\n", normalizedVersion)
-		_, err = os.Stat(filepath.Join(distsDir, fmt.Sprintf("go%s.tar.gz", normalizedVersion)))
-		if err != nil {
-			err = downloader.DownloadAndInstall(normalizedVersion, distsDir, sdksDir)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-				os.Exit(1)
-			}
-		} else {
-			fmt.Printf("Archive found at %s, skipping download.\n", filepath.Join(distsDir, fmt.Sprintf("go%s.tar.gz", normalizedVersion)))
+		// DownloadAndInstall handles both downloading (if needed) and extracting
+		// It will skip download if the archive already exists, but will always extract
+		if err := downloader.DownloadAndInstall(normalizedVersion, distsDir, sdksDir); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
 		}
 
 		// Create GOPATH directory for this version
