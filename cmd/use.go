@@ -63,9 +63,15 @@ var useCmd = &cobra.Command{
 		// Verify that GOPATH exists for this version
 		if _, err := os.Stat(gopath); os.IsNotExist(err) {
 			// Create GOPATH if it doesn't exist (for versions installed before this feature)
-			os.MkdirAll(gopath, 0755)
+			if err := os.MkdirAll(gopath, 0755); err != nil {
+				fmt.Printf("Error creating gopath: %v\n", err)
+				os.Exit(1)
+			}
 			for _, subdir := range []string{"src", "bin", "pkg"} {
-				os.MkdirAll(filepath.Join(gopath, subdir), 0755)
+				if err := os.MkdirAll(filepath.Join(gopath, subdir), 0755); err != nil {
+					fmt.Printf("Error creating gopath subdirectory %s: %v\n", subdir, err)
+					os.Exit(1)
+				}
 			}
 		}
 
@@ -73,15 +79,24 @@ var useCmd = &cobra.Command{
 		if _, err := os.Stat(goenvPath); os.IsNotExist(err) {
 			// Create GOENV if it doesn't exist (GOROOT and GOPATH are set by vg init, not in this file)
 			goenvsDir := filepath.Dir(goenvPath)
-			os.MkdirAll(goenvsDir, 0755)
+			if err := os.MkdirAll(goenvsDir, 0755); err != nil {
+				fmt.Printf("Error creating goenvs directory: %v\n", err)
+				os.Exit(1)
+			}
 			goenvContent := "# This file is managed by vg.\n# GOROOT and GOPATH are set automatically by 'vg init'.\n# You can add custom environment variables below or use 'go env -w KEY=VALUE'\n"
-			os.WriteFile(goenvPath, []byte(goenvContent), 0644)
+			if err := os.WriteFile(goenvPath, []byte(goenvContent), 0644); err != nil {
+				fmt.Printf("Error creating goenv file: %v\n", err)
+				os.Exit(1)
+			}
 		}
 
 		// Verify that GOCACHE exists for this version
 		if _, err := os.Stat(gocache); os.IsNotExist(err) {
 			// Create GOCACHE if it doesn't exist (for versions installed before this feature)
-			os.MkdirAll(gocache, 0755)
+			if err := os.MkdirAll(gocache, 0755); err != nil {
+				fmt.Printf("Error creating gocache: %v\n", err)
+				os.Exit(1)
+			}
 		}
 
 		// Helper function to update a symlink

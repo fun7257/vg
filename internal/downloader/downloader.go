@@ -61,7 +61,9 @@ func DownloadAndInstall(version, distsDir, sdksDir string) error {
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 
 		switch resp.StatusCode {
 		case http.StatusOK:
@@ -76,7 +78,9 @@ func DownloadAndInstall(version, distsDir, sdksDir string) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		bar := progressbar.DefaultBytes(
 			resp.ContentLength,
@@ -100,11 +104,13 @@ func DownloadAndInstall(version, distsDir, sdksDir string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	if err := extractTarGz(f, installPath); err != nil {
 		// Cleanup on failure
-		os.RemoveAll(installPath)
+		_ = os.RemoveAll(installPath)
 		return err
 	}
 
@@ -117,7 +123,9 @@ func extractTarGz(r io.Reader, destDir string) error {
 	if err != nil {
 		return err
 	}
-	defer gzr.Close()
+	defer func() {
+		_ = gzr.Close()
+	}()
 
 	tr := tar.NewReader(gzr)
 
@@ -160,10 +168,12 @@ func extractTarGz(r io.Reader, destDir string) error {
 				return err
 			}
 			if _, err := io.Copy(f, tr); err != nil {
-				f.Close()
+				_ = f.Close()
 				return err
 			}
-			f.Close()
+			if err := f.Close(); err != nil {
+				return err
+			}
 		case tar.TypeSymlink:
 			// Ensure parent dir exists
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
