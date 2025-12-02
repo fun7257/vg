@@ -35,6 +35,24 @@ var rmCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Check if this version is currently in use
+		currentLink, err := config.GetCurrentLink()
+		if err != nil {
+			fmt.Printf("Error getting current link: %v\n", err)
+			os.Exit(1)
+		}
+
+		if target, err := os.Readlink(currentLink); err == nil {
+			currentVersion := filepath.Base(target)
+			if currentVersion == normalizedVersion {
+				fmt.Printf("❌ Cannot remove Go %s: it is currently in use\n", normalizedVersion)
+				fmt.Printf("\nTo remove this version, first switch to another version:\n")
+				fmt.Printf("  vg use <other-version>\n")
+				fmt.Printf("  vg rm %s\n", normalizedVersion)
+				os.Exit(1)
+			}
+		}
+
 		// Confirm deletion
 		fmt.Printf("Removing Go version %s...\n", normalizedVersion)
 

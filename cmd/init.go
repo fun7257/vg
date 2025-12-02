@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"vg/internal/config"
 
@@ -77,27 +76,6 @@ Add the following to your shell profile (e.g., ~/.zshrc or ~/.bashrc):
 		currentBin := filepath.Join(currentLink, "bin")
 		gopathBin := filepath.Join(currentGopathLink, "bin")
 		fmt.Printf("export PATH=\"%s:%s:$PATH\"\n", currentBin, gopathBin)
-
-		// Load GOENV file if it exists (for additional environment variables)
-		// The GOENV file is pointed to by the current-goenv symlink
-		if _, err := os.Lstat(currentGoenvLink); err == nil {
-			goenvContent, err := os.ReadFile(currentGoenvLink)
-			if err == nil {
-				lines := strings.Split(string(goenvContent), "\n")
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					if line == "" || strings.HasPrefix(line, "#") {
-						continue
-					}
-					// Skip GOROOT, GOPATH, GOMODCACHE, GOCACHE, and GOENV to avoid duplicate exports
-					if strings.HasPrefix(line, "GOROOT=") || strings.HasPrefix(line, "GOPATH=") || strings.HasPrefix(line, "GOMODCACHE=") || strings.HasPrefix(line, "GOCACHE=") || strings.HasPrefix(line, "GOENV=") {
-						continue
-					}
-					// Output as export command for other environment variables
-					fmt.Printf("export %s\n", line)
-				}
-			}
-		}
 	},
 }
 

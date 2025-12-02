@@ -19,6 +19,9 @@ var installCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		version := args[0]
 
+		// Normalize version (remove 'go' prefix if present)
+		normalizedVersion := strings.TrimPrefix(version, "go")
+
 		distsDir, err := config.GetDistsDir()
 		if err != nil {
 			fmt.Printf("Error getting dists dir: %v\n", err)
@@ -31,14 +34,22 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Installing Go %s...\n", version)
-		if err := downloader.DownloadAndInstall(version, distsDir, sdksDir); err != nil {
-			fmt.Printf("Error: %v\n", err)
+		if _, err := os.Stat(filepath.Join(sdksDir, normalizedVersion)); err == nil {
+			fmt.Printf("❌ Go %s is already installed\n", normalizedVersion)
 			os.Exit(1)
 		}
 
-		// Normalize version (remove 'go' prefix if present)
-		normalizedVersion := strings.TrimPrefix(version, "go")
+		fmt.Printf("Installing Go %s...\n", normalizedVersion)
+		_, err = os.Stat(filepath.Join(distsDir, fmt.Sprintf("go%s.tar.gz", normalizedVersion)))
+		if err != nil {
+			err = downloader.DownloadAndInstall(normalizedVersion, distsDir, sdksDir)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Printf("Archive found at %s, skipping download.\n", filepath.Join(distsDir, fmt.Sprintf("go%s.tar.gz", normalizedVersion)))
+		}
 
 		// Create GOPATH directory for this version
 		gopath, err := config.GetVersionGopath(normalizedVersion)
