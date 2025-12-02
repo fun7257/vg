@@ -91,25 +91,33 @@ get_version() {
     info "Latest version: ${latest_version}"
     echo ""
     
-    while true; do
-        read -p "Enter vg version to install (default: ${latest_version}): " VERSION_INPUT
-        
-        if [ -z "$VERSION_INPUT" ]; then
-            VERSION="$latest_version"
+    # Check if running in non-interactive mode (e.g., piped from curl)
+    if [ ! -t 0 ]; then
+        # Non-interactive: use latest version
+        VERSION="$latest_version"
+        info "Non-interactive mode detected. Using latest version: ${VERSION}"
+    else
+        # Interactive: prompt user
+        while true; do
+            read -p "Enter vg version to install (default: ${latest_version}): " VERSION_INPUT
+            
+            if [ -z "$VERSION_INPUT" ]; then
+                VERSION="$latest_version"
+                break
+            fi
+            
+            # Remove 'v' prefix if present
+            VERSION="${VERSION_INPUT#v}"
+            
+            # Basic version format validation
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-.*)?$ ]]; then
+                warning "Invalid version format. Please use format like '1.0.0' or 'v1.0.0'"
+                continue
+            fi
+            
             break
-        fi
-        
-        # Remove 'v' prefix if present
-        VERSION="${VERSION_INPUT#v}"
-        
-        # Basic version format validation
-        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-.*)?$ ]]; then
-            warning "Invalid version format. Please use format like '1.0.0' or 'v1.0.0'"
-            continue
-        fi
-        
-        break
-    done
+        done
+    fi
     
     info "Installing vg version: ${VERSION}"
 }
@@ -210,6 +218,13 @@ is_first_time() {
 
 # Interactive Go version installation
 install_initial_go_version() {
+    # Check if running in non-interactive mode
+    if [ ! -t 0 ]; then
+        info "Non-interactive mode: skipping initial Go version installation."
+        info "You can install a Go version later using: vg install <version>"
+        return 0
+    fi
+    
     info "${BLUE}=== Welcome to vg! ===${NC}"
     echo ""
     info "This appears to be your first time using vg."
@@ -371,7 +386,21 @@ setup_shell_config() {
         return 0
     fi
     
-    # Ask user if they want to add it
+    # Check if running in non-interactive mode
+    if [ ! -t 0 ]; then
+        # Non-interactive: automatically add to config
+        info "Non-interactive mode: automatically adding vg init to ${config_file}"
+        if add_vg_init_to_config "$config_file"; then
+            success "Configuration updated!"
+            info "The changes will take effect in new shell sessions."
+            info "To use it in the current session, run: source ${config_file}"
+        else
+            error "Failed to add configuration to ${config_file}"
+        fi
+        return 0
+    fi
+    
+    # Interactive: ask user if they want to add it
     read -p "Add 'eval \"\$(vg init)\"' to ${config_file}? (Y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Nn]$ ]]; then
