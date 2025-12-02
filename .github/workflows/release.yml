@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}  # Checkout the tag that triggered the workflow
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -64,6 +66,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}  # Checkout the tag that triggered the workflow
+
+      - name: Display tag information
+        run: |
+          echo "Tag name: ${{ github.ref_name }}"
+          echo "Tag ref: ${{ github.ref }}"
+          git describe --tags --exact-match HEAD || echo "Warning: Could not verify tag"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -90,12 +100,21 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}  # Use the tag name that triggered the workflow
           name: Release ${{ github.ref_name }}
+          body: |
+            ## Release ${{ github.ref_name }}
+            
+            This release was automatically created from tag **${{ github.ref_name }}**.
+            
+            ### Downloads
+            
+            - `vg-linux-amd64` - Linux AMD64
+            - `vg-linux-arm64` - Linux ARM64
+            - `vg-darwin-amd64` - macOS Intel
+            - `vg-darwin-arm64` - macOS Apple Silicon
           files: release/*
           generate_release_notes: true
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
