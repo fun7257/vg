@@ -25,7 +25,8 @@ if [ -f "$GITHOOKS_DIR/pre-commit" ]; then
     chmod +x "$HOOKS_DIR/pre-commit"
     echo "✓ Installed pre-commit hook"
 else
-    echo "Warning: pre-commit hook not found in .githooks/"
+    echo "Error: pre-commit hook not found in .githooks/"
+    exit 1
 fi
 
 echo ""
@@ -33,4 +34,3 @@ echo "Git hooks installed successfully!"
 echo ""
 echo "The pre-commit hook will run golangci-lint before each commit."
 echo "To skip the hook, use: git commit --no-verify"
-
