@@ -58,6 +58,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code
@@ -68,16 +70,29 @@ jobs:
         with:
           path: dist
 
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          # download-artifact creates subdirectories for each artifact
+          # The structure is: dist/artifact-name/file-name
+          # Copy all vg-* files to a flat release directory
+          for dir in dist/vg-*; do
+            if [ -d "$dir" ]; then
+              cp "$dir"/* release/ 2>/dev/null || true
+            fi
+          done
+          # Also check if files are directly in dist (fallback)
+          find dist -maxdepth 1 -type f -name "vg-*" -exec cp {} release/ \; 2>/dev/null || true
+          chmod +x release/*
+          echo "Release files:"
+          ls -lh release/
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          files: |
-            dist/vg-linux-amd64
-            dist/vg-linux-arm64
-            dist/vg-darwin-amd64
-            dist/vg-darwin-arm64
+          files: release/*
           generate_release_notes: true
           draft: false
           prerelease: false
