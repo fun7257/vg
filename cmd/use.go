@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"vg/internal/config"
 
@@ -16,6 +17,8 @@ var useCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		version := args[0]
+		// Normalize version (remove 'go' prefix if present)
+		normalizedVersion := strings.TrimPrefix(version, "go")
 
 		sdksDir, err := config.GetSdksDir()
 		if err != nil {
@@ -30,7 +33,7 @@ var useCmd = &cobra.Command{
 		}
 
 		// Check if version exists
-		versionPath := filepath.Join(sdksDir, version)
+		versionPath := filepath.Join(sdksDir, normalizedVersion)
 		if _, err := os.Stat(versionPath); os.IsNotExist(err) {
 			fmt.Printf("❌ Go version %s is not installed\n", version)
 			fmt.Println("\nRun 'vg list' to see installed versions")
@@ -38,24 +41,88 @@ var useCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Create or update the 'current' symlink
-		currentLink := filepath.Join(vgHome, "current")
-
-		// Remove existing symlink if it exists
-		if _, err := os.Lstat(currentLink); err == nil {
-			if err := os.Remove(currentLink); err != nil {
-				fmt.Printf("❌ Error removing old symlink: %v\n", err)
-				os.Exit(1)
-			}
-		}
-
-		// Create new symlink
-		if err := os.Symlink(versionPath, currentLink); err != nil {
-			fmt.Printf("❌ Error creating symlink: %v\n", err)
+		// Get paths for this version
+		gopath, err := config.GetVersionGopath(normalizedVersion)
+		if err != nil {
+			fmt.Printf("Error getting gopath: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("✅ Switched to Go %s\n", version)
+		goenvPath, err := config.GetVersionGoenv(normalizedVersion)
+		if err != nil {
+			fmt.Printf("Error getting goenv path: %v\n", err)
+			os.Exit(1)
+		}
+
+		gocache, err := config.GetVersionGocache(normalizedVersion)
+		if err != nil {
+			fmt.Printf("Error getting gocache: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Verify that GOPATH exists for this version
+		if _, err := os.Stat(gopath); os.IsNotExist(err) {
+			// Create GOPATH if it doesn't exist (for versions installed before this feature)
+			os.MkdirAll(gopath, 0755)
+			for _, subdir := range []string{"src", "bin", "pkg"} {
+				os.MkdirAll(filepath.Join(gopath, subdir), 0755)
+			}
+		}
+
+		// Verify that GOENV exists for this version
+		if _, err := os.Stat(goenvPath); os.IsNotExist(err) {
+			// Create GOENV if it doesn't exist (GOROOT and GOPATH are set by vg init, not in this file)
+			goenvsDir := filepath.Dir(goenvPath)
+			os.MkdirAll(goenvsDir, 0755)
+			goenvContent := "# This file is managed by vg.\n# GOROOT and GOPATH are set automatically by 'vg init'.\n# You can add custom environment variables below or use 'go env -w KEY=VALUE'\n"
+			os.WriteFile(goenvPath, []byte(goenvContent), 0644)
+		}
+
+		// Verify that GOCACHE exists for this version
+		if _, err := os.Stat(gocache); os.IsNotExist(err) {
+			// Create GOCACHE if it doesn't exist (for versions installed before this feature)
+			os.MkdirAll(gocache, 0755)
+		}
+
+		// Helper function to update a symlink
+		updateSymlink := func(linkPath, targetPath string, linkName string) error {
+			// Remove existing symlink if it exists
+			if _, err := os.Lstat(linkPath); err == nil {
+				if err := os.Remove(linkPath); err != nil {
+					return fmt.Errorf("error removing old %s symlink: %w", linkName, err)
+				}
+			}
+			// Create new symlink
+			if err := os.Symlink(targetPath, linkPath); err != nil {
+				return fmt.Errorf("error creating %s symlink: %w", linkName, err)
+			}
+			return nil
+		}
+
+		// Update all symlinks
+		currentLink, _ := config.GetCurrentLink()
+		if err := updateSymlink(currentLink, versionPath, "current"); err != nil {
+			fmt.Printf("❌ %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := updateSymlink(filepath.Join(vgHome, "current-gopath"), gopath, "current-gopath"); err != nil {
+			fmt.Printf("❌ %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := updateSymlink(filepath.Join(vgHome, "current-gocache"), gocache, "current-gocache"); err != nil {
+			fmt.Printf("❌ %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := updateSymlink(filepath.Join(vgHome, "current-goenv"), goenvPath, "current-goenv"); err != nil {
+			fmt.Printf("❌ %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("✅ Switched to Go %s\n", normalizedVersion)
+		fmt.Println("\nEnvironment variables will be updated automatically via symlinks.")
 	},
 }
 

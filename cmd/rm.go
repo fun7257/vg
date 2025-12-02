@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"vg/internal/config"
@@ -17,6 +18,8 @@ var rmCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		version := args[0]
+		// Normalize version (remove 'go' prefix if present)
+		normalizedVersion := strings.TrimPrefix(version, "go")
 
 		sdksDir, err := config.GetSdksDir()
 		if err != nil {
@@ -25,7 +28,7 @@ var rmCmd = &cobra.Command{
 		}
 
 		// Check if version exists
-		versionPath := filepath.Join(sdksDir, version)
+		versionPath := filepath.Join(sdksDir, normalizedVersion)
 		if _, err := os.Stat(versionPath); os.IsNotExist(err) {
 			fmt.Printf("❌ Go version %s is not installed\n", version)
 			fmt.Println("\nRun 'vg list' to see installed versions")
@@ -33,23 +36,61 @@ var rmCmd = &cobra.Command{
 		}
 
 		// Confirm deletion
-		fmt.Printf("Removing Go version %s...\n", version)
+		fmt.Printf("Removing Go version %s...\n", normalizedVersion)
 
 		// Show progress animation
 		done := make(chan bool)
 		go showProgress(done)
 
-		// Perform deletion
+		// Perform deletion of SDK
 		err = os.RemoveAll(versionPath)
-		done <- true
-		<-done // Wait for animation to finish
-
 		if err != nil {
-			fmt.Printf("\n❌ Error removing version: %v\n", err)
+			done <- true
+			<-done
+			fmt.Printf("\n❌ Error removing SDK: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("\n✅ Successfully removed go%s\n", version)
+		// Remove GOPATH for this version
+		gopath, err := config.GetVersionGopath(normalizedVersion)
+		if err == nil {
+			if _, err := os.Stat(gopath); err == nil {
+				if err := os.RemoveAll(gopath); err != nil {
+					done <- true
+					<-done
+					fmt.Printf("\n⚠️  Warning: Error removing GOPATH: %v\n", err)
+				}
+			}
+		}
+
+		// Remove GOENV for this version
+		goenvPath, err := config.GetVersionGoenv(normalizedVersion)
+		if err == nil {
+			if _, err := os.Stat(goenvPath); err == nil {
+				if err := os.Remove(goenvPath); err != nil {
+					done <- true
+					<-done
+					fmt.Printf("\n⚠️  Warning: Error removing GOENV: %v\n", err)
+				}
+			}
+		}
+
+		// Remove GOCACHE for this version
+		gocache, err := config.GetVersionGocache(normalizedVersion)
+		if err == nil {
+			if _, err := os.Stat(gocache); err == nil {
+				if err := os.RemoveAll(gocache); err != nil {
+					done <- true
+					<-done
+					fmt.Printf("\n⚠️  Warning: Error removing GOCACHE: %v\n", err)
+				}
+			}
+		}
+
+		done <- true
+		<-done // Wait for animation to finish
+
+		fmt.Printf("\n✅ Successfully removed Go %s (SDK, GOPATH, GOENV, and GOCACHE)\n", normalizedVersion)
 	},
 }
 
