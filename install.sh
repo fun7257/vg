@@ -91,34 +91,27 @@ get_version() {
     info "Latest version: ${latest_version}"
     echo ""
     
-    # Check if running in non-interactive mode (e.g., piped from curl)
-    if [ ! -t 0 ]; then
-        # Non-interactive: use latest version
-        VERSION="$latest_version"
-        info "Non-interactive mode detected. Using latest version: ${VERSION}"
-    else
-        # Interactive: prompt user
-        while true; do
-            read -p "Enter vg version to install (default: ${latest_version}): " VERSION_INPUT
-            
-            if [ -z "$VERSION_INPUT" ]; then
-                VERSION="$latest_version"
-                break
-            fi
-            
-            # Remove 'v' prefix if present
-            VERSION="${VERSION_INPUT#v}"
-            
-            # Basic version format validation
-            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-.*)?$ ]]; then
-                warning "Invalid version format. Please use format like '1.0.0' or 'v1.0.0'"
-                continue
-            fi
-            
+    # Always prompt user (even in non-interactive mode, we can read from /dev/tty)
+    while true; do
+        VERSION_INPUT=""
+        read_from_tty "Enter vg version to install (default: ${latest_version}, press Enter for latest): " VERSION_INPUT
+        
+        if [ -z "$VERSION_INPUT" ]; then
+            VERSION="$latest_version"
             break
-        done
-    fi
-    
+        fi
+        
+        # Remove 'v' prefix if present
+        VERSION="${VERSION_INPUT#v}"
+        
+        # Basic version format validation
+        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-.*)?$ ]]; then
+            warning "Invalid version format. Please use format like '1.0.0' or 'v1.0.0'"
+            continue
+        fi
+        
+        break
+    done
     info "Installing vg version: ${VERSION}"
 }
 
@@ -216,15 +209,27 @@ is_first_time() {
     return 1  # Not first time
 }
 
+# Helper function to read from terminal even when stdin is piped
+read_from_tty() {
+    local prompt="$1"
+    local var_name="$2"
+    
+    # Try to read from /dev/tty if available, otherwise use stdin
+    if [ -r /dev/tty ]; then
+        # stdin might be piped, read from /dev/tty
+        echo -n "$prompt" > /dev/tty
+        read "$var_name" < /dev/tty
+    elif [ -t 0 ]; then
+        # stdin is a terminal, use it
+        read -p "$prompt" "$var_name"
+    else
+        # Fallback: try to read from stdin anyway
+        read -p "$prompt" "$var_name" || true
+    fi
+}
+
 # Interactive Go version installation
 install_initial_go_version() {
-    # Check if running in non-interactive mode
-    if [ ! -t 0 ]; then
-        info "Non-interactive mode: skipping initial Go version installation."
-        info "You can install a Go version later using: vg install <version>"
-        return 0
-    fi
-    
     info "${BLUE}=== Welcome to vg! ===${NC}"
     echo ""
     info "This appears to be your first time using vg."
@@ -232,7 +237,8 @@ install_initial_go_version() {
     echo ""
     
     while true; do
-        read -p "Enter Go version to install (e.g., 1.24.0 or go1.24.0, or 'skip' to skip): " GO_VERSION_INPUT
+        GO_VERSION_INPUT=""
+        read_from_tty "Enter Go version to install (e.g., 1.24.0 or go1.24.0, or 'skip' to skip): " GO_VERSION_INPUT
         
         if [ -z "$GO_VERSION_INPUT" ]; then
             warning "Go version cannot be empty. Please try again."
@@ -276,9 +282,10 @@ install_initial_go_version() {
         success "Go ${GO_VERSION} installed successfully!"
         
         # Ask if user wants to switch to this version
-        read -p "Switch to Go ${GO_VERSION} now? (Y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        REPLY=""
+        read_from_tty "Switch to Go ${GO_VERSION} now? (Y/n) " REPLY
+        echo ""
+        if [ -z "$REPLY" ] || [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
             if $VG_CMD use "$GO_VERSION"; then
                 echo ""
                 success "Switched to Go ${GO_VERSION}!"
@@ -386,24 +393,16 @@ setup_shell_config() {
         return 0
     fi
     
-    # Check if running in non-interactive mode
-    if [ ! -t 0 ]; then
-        # Non-interactive: automatically add to config
-        info "Non-interactive mode: automatically adding vg init to ${config_file}"
-        if add_vg_init_to_config "$config_file"; then
-            success "Configuration updated!"
-            info "The changes will take effect in new shell sessions."
-            info "To use it in the current session, run: source ${config_file}"
-        else
-            error "Failed to add configuration to ${config_file}"
-        fi
-        return 0
-    fi
+    # Always prompt user (even in non-interactive mode, we can read from /dev/tty)
+    echo ""
+    info "📝 Shell Configuration"
+    echo ""
     
     # Interactive: ask user if they want to add it
-    read -p "Add 'eval \"\$(vg init)\"' to ${config_file}? (Y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
+    REPLY=""
+    read_from_tty "Add 'eval \"\$(vg init)\"' to ${config_file}? (Y/n) " REPLY
+    echo ""
+    if [[ "$REPLY" =~ ^[Nn]$ ]]; then
         info "Skipped. You can manually add 'eval \"\$(vg init)\"' to your shell configuration."
         info "Or run it manually in each new shell session."
         return 0
@@ -416,9 +415,10 @@ setup_shell_config() {
         info "The changes will take effect in new shell sessions."
         info "To use it in the current session, run: source ${config_file}"
         echo ""
-        read -p "Apply configuration to current session now? (Y/n) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        REPLY=""
+        read_from_tty "Apply configuration to current session now? (Y/n) " REPLY
+        echo ""
+        if [ -z "$REPLY" ] || [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
             if [ -f "$config_file" ]; then
                 # Source the file to apply changes
                 if source "$config_file" 2>/dev/null || . "$config_file" 2>/dev/null; then
