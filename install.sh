@@ -371,10 +371,13 @@ setup_shell_config() {
     echo ""
     info "📝 Shell Configuration"
     echo ""
+    info "To complete the setup, vg needs to add initialization to your shell config."
+    info "This will add 'eval \"\$(vg init)\"' to ${config_file} and apply it to the current session."
+    echo ""
     
-    # Interactive: ask user if they want to add it
+    # Single confirmation for both adding to config and applying to current session
     REPLY=""
-    read_from_tty "Add 'eval \"\$(vg init)\"' to ${config_file}? (Y/n) " REPLY
+    read_from_tty "Configure shell environment now? (Y/n) " REPLY
     echo ""
     if [[ "$REPLY" =~ ^[Nn]$ ]]; then
         info "Skipped. You can manually add 'eval \"\$(vg init)\"' to your shell configuration."
@@ -385,22 +388,15 @@ setup_shell_config() {
     # Add to config file
     if add_vg_init_to_config "$config_file"; then
         echo ""
-        success "Configuration updated!"
-        info "The changes will take effect in new shell sessions."
-        info "To use it in the current session, run: source ${config_file}"
-        echo ""
-        REPLY=""
-        read_from_tty "Apply configuration to current session now? (Y/n) " REPLY
-        echo ""
-        if [ -z "$REPLY" ] || [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
-            if [ -f "$config_file" ]; then
-                # Source the file to apply changes
-                if source "$config_file" 2>/dev/null || . "$config_file" 2>/dev/null; then
-                    success "Configuration applied to current session!"
-                else
-                    warning "Could not apply configuration to current session"
-                    info "Please run: source ${config_file}"
-                fi
+        success "Configuration added to ${config_file}!"
+        
+        # Automatically apply to current session
+        if [ -f "$config_file" ]; then
+            if source "$config_file" 2>/dev/null || . "$config_file" 2>/dev/null; then
+                success "Configuration applied to current session!"
+            else
+                warning "Could not apply configuration to current session"
+                info "Please run: source ${config_file}"
             fi
         fi
     else
