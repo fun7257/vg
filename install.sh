@@ -85,33 +85,10 @@ get_latest_version() {
     echo "$version"
 }
 
-# Interactive prompt for version
+# Get latest version (no user input needed)
 get_version() {
     local latest_version=$(get_latest_version)
-    info "Latest version: ${latest_version}"
-    echo ""
-    
-    # Always prompt user (even in non-interactive mode, we can read from /dev/tty)
-    while true; do
-        VERSION_INPUT=""
-        read_from_tty "Enter vg version to install (default: ${latest_version}, press Enter for latest): " VERSION_INPUT
-        
-        if [ -z "$VERSION_INPUT" ]; then
-            VERSION="$latest_version"
-            break
-        fi
-        
-        # Remove 'v' prefix if present
-        VERSION="${VERSION_INPUT#v}"
-        
-        # Basic version format validation
-        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-.*)?$ ]]; then
-            warning "Invalid version format. Please use format like '1.0.0' or 'v1.0.0'"
-            continue
-        fi
-        
-        break
-    done
+    VERSION="$latest_version"
     info "Installing vg version: ${VERSION}"
 }
 
@@ -281,16 +258,13 @@ install_initial_go_version() {
         echo ""
         success "Go ${GO_VERSION} installed successfully!"
         
-        # Ask if user wants to switch to this version
-        REPLY=""
-        read_from_tty "Switch to Go ${GO_VERSION} now? (Y/n) " REPLY
-        echo ""
-        if [ -z "$REPLY" ] || [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
-            if $VG_CMD use "$GO_VERSION"; then
-                echo ""
-                success "Switched to Go ${GO_VERSION}!"
-                info "Run 'eval \"\$($VG_CMD init)\"' or add it to your shell profile to activate the environment."
-            fi
+        # Automatically switch to the installed version
+        if $VG_CMD use "$GO_VERSION"; then
+            echo ""
+            success "Switched to Go ${GO_VERSION}!"
+        else
+            warning "Failed to switch to Go ${GO_VERSION}"
+            info "You can switch manually using: vg use ${GO_VERSION}"
         fi
     else
         error "Failed to install Go ${GO_VERSION}"
@@ -470,15 +444,19 @@ main() {
     verify_installation
     echo ""
     
-    # Setup shell configuration
-    setup_shell_config
-    echo ""
-    
     # Check if first time and offer to install Go version
+    # This must be done before shell configuration
     if is_first_time; then
         echo ""
         install_initial_go_version
-    else
+        echo ""
+    fi
+    
+    # Setup shell configuration (after Go version is installed)
+    setup_shell_config
+    echo ""
+    
+    if ! is_first_time; then
         info "Run 'vg --help' to see available commands"
     fi
 }
