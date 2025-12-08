@@ -12,5 +12,8 @@ build:
 clean:
 	rm -rf $(BUILD_DIR)
 
+local: build
+	@sudo cp $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/vg
+
 install-hooks:
 	@./scripts/install-hooks.sh

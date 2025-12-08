@@ -145,3 +145,26 @@ func GetCurrentGoenvLink() (string, error) {
 	}
 	return filepath.Join(vgHome, "current-goenv"), nil
 }
+
+const (
+	// EnvsDirName stores the virtual environments.
+	EnvsDirName = "envs"
+)
+
+// GetEnvsDir returns the directory containing virtual environments
+func GetEnvsDir() (string, error) {
+	vgHome, err := GetVgHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(vgHome, EnvsDirName), nil
+}
+
+// GetEnvDir returns the directory for a specific environment under a specific Go version
+func GetEnvDir(version, name string) (string, error) {
+	envsDir, err := GetEnvsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(envsDir, version, name), nil
+}
