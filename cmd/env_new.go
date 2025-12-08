@@ -90,6 +90,6 @@ var newCmd = &cobra.Command{
 		}
 
 		fmt.Printf("✅ Created virtual environment '%s'\n", envName)
-		fmt.Printf("\nActivate it with:\n  vg load %s\n", envName)
+		fmt.Printf("\nActivate it with:\n  vg env load %s\n", envName)
 	},
 }

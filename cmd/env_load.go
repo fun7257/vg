@@ -53,7 +53,7 @@ var loadCmd = &cobra.Command{
 
 		if _, err := os.Stat(envDir); os.IsNotExist(err) {
 			fmt.Printf("❌ Environment '%s' not found for Go %s\n", envName, currentVersion)
-			fmt.Printf("Run 'vg new %s' to create it\n", envName)
+			fmt.Printf("Run 'vg env new %s' to create it\n", envName)
 			os.Exit(1)
 		}
 
