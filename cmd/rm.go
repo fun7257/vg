@@ -105,10 +105,24 @@ var rmCmd = &cobra.Command{
 			}
 		}
 
+		// Remove Virtual Environments for this version
+		// envsRoot/version/
+		envsRoot, err := config.GetEnvsDir()
+		if err == nil {
+			versionEnvsDir := filepath.Join(envsRoot, normalizedVersion)
+			if _, err := os.Stat(versionEnvsDir); err == nil {
+				if err := os.RemoveAll(versionEnvsDir); err != nil {
+					done <- true
+					<-done
+					fmt.Printf("\n⚠️  Warning: Error removing Virtual Environments: %v\n", err)
+				}
+			}
+		}
+
 		done <- true
 		<-done // Wait for animation to finish
 
-		fmt.Printf("\n✅ Successfully removed Go %s (SDK, GOPATH, GOENV, and GOCACHE)\n", normalizedVersion)
+		fmt.Printf("\n✅ Successfully removed Go %s (SDK, GOPATH, GOENV, GOCACHE, and Virtual Envs)\n", normalizedVersion)
 	},
 }
 

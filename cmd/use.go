@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fun7257/vg/internal/config"
+	"github.com/fun7257/vg/internal/downloader"
 
 	"github.com/spf13/cobra"
 )
@@ -35,10 +36,36 @@ var useCmd = &cobra.Command{
 		// Check if version exists
 		versionPath := filepath.Join(sdksDir, normalizedVersion)
 		if _, err := os.Stat(versionPath); os.IsNotExist(err) {
-			fmt.Printf("❌ Go version %s is not installed\n", version)
-			fmt.Println("\nRun 'vg list' to see installed versions")
-			fmt.Printf("Run 'vg install %s' to install this version\n", version)
-			os.Exit(1)
+			// Try to install it
+			fmt.Printf("Go version %s is not installed. Do you want to install it? [y/N] ", normalizedVersion)
+
+			var response string
+			_, err := fmt.Scanln(&response)
+			if err != nil && err.Error() != "unexpected newline" {
+				fmt.Printf("Error scanning response: %v\n", err)
+				os.Exit(1)
+			}
+
+			if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
+				fmt.Println("\nRun 'vg list' to see installed versions")
+				fmt.Printf("Run 'vg install %s' to install this version\n", version)
+				os.Exit(1)
+			}
+
+			distsDir, err := config.GetDistsDir()
+			if err != nil {
+				fmt.Printf("Error getting dists dir: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Call downloader
+			if err := downloader.DownloadAndInstall(normalizedVersion, distsDir, sdksDir); err != nil {
+				fmt.Printf("❌ Failed to install Go %s: %v\n", normalizedVersion, err)
+				os.Exit(1)
+			}
+
+			fmt.Printf("✅ Automatically installed Go %s\n", normalizedVersion)
+
 		}
 
 		// Get paths for this version
@@ -60,7 +87,7 @@ var useCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Verify that GOPATH exists for this version
+		// Verify that GOPATH exists for this version (legacy check)
 		if _, err := os.Stat(gopath); os.IsNotExist(err) {
 			// Create GOPATH if it doesn't exist (for versions installed before this feature)
 			if err := os.MkdirAll(gopath, 0755); err != nil {
@@ -77,7 +104,7 @@ var useCmd = &cobra.Command{
 
 		// Verify that GOENV exists for this version
 		if _, err := os.Stat(goenvPath); os.IsNotExist(err) {
-			// Create GOENV if it doesn't exist (GOROOT and GOPATH are set by vg init, not in this file)
+			// Create GOENV if it doesn't exist
 			goenvsDir := filepath.Dir(goenvPath)
 			if err := os.MkdirAll(goenvsDir, 0755); err != nil {
 				fmt.Printf("Error creating goenvs directory: %v\n", err)
@@ -92,7 +119,7 @@ var useCmd = &cobra.Command{
 
 		// Verify that GOCACHE exists for this version
 		if _, err := os.Stat(gocache); os.IsNotExist(err) {
-			// Create GOCACHE if it doesn't exist (for versions installed before this feature)
+			// Create GOCACHE if it doesn't exist
 			if err := os.MkdirAll(gocache, 0755); err != nil {
 				fmt.Printf("Error creating gocache: %v\n", err)
 				os.Exit(1)

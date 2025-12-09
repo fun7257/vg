@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/fun7257/vg/internal/config"
 
@@ -12,7 +14,7 @@ import (
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all installed Go versions",
+	Short: "List all installed Go versions and their virtual environments",
 	Run: func(cmd *cobra.Command, args []string) {
 		sdksDir, err := config.GetSdksDir()
 		if err != nil {
@@ -54,10 +56,43 @@ var listCmd = &cobra.Command{
 		// Sort versions
 		sort.Strings(versions)
 
+		// Get envs root dir
+		envsRoot, _ := config.GetEnvsDir()
+
 		// Display
 		fmt.Printf("Installed Go versions (%d):\n", len(versions))
 		for _, version := range versions {
 			fmt.Printf("  - %s\n", version)
+
+			// Check for virtual environments
+			if envsRoot != "" {
+				versionEnvsDir := filepath.Join(envsRoot, version)
+				if envEntries, err := os.ReadDir(versionEnvsDir); err == nil {
+					var envs []string
+					for _, envEntry := range envEntries {
+						if envEntry.IsDir() {
+							envs = append(envs, envEntry.Name())
+						}
+					}
+
+					if len(envs) > 0 {
+						sort.Strings(envs)
+						for _, envName := range envs {
+							remark := ""
+							remarkPath := filepath.Join(versionEnvsDir, envName, "remark.txt")
+							if data, err := os.ReadFile(remarkPath); err == nil {
+								remark = strings.TrimSpace(string(data))
+							}
+
+							if remark != "" {
+								fmt.Printf("      * %s (%s)\n", envName, remark)
+							} else {
+								fmt.Printf("      * %s\n", envName)
+							}
+						}
+					}
+				}
+			}
 		}
 	},
 }
